@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroVibes AI Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #root { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+const BG_IMG = "bg.jpg";
+
+const TEAL = "#0D9488";
+const DARK_TEAL = "#1A6B7A";
+const TURQUOISE = "#3BBFB8";
+const PINK = "#E91E63";
+const GREEN = "#10B981";
+const AMBER = "#F59E0B";
+const CYAN = "#0891B2";
+const BODY = "#334155";
+const SECONDARY = "#64748B";
+const BORDER = "#E2E8F0";
+const LIGHT_BG = "#F8FAFC";
+
+const traineeData = [
+  { name: "Tan Wei Lin", group: "Grp2", cognitive: { sart: 94.4, visualReaction: 80, spatialPlanning: 68.75 }, physical: { vo2max: 42 }, psychological: { teamResilience: 78, selfDetermination: 82 } },
+  { name: "Lim Jun Hao", group: "Grp2", cognitive: { sart: 72.5, visualReaction: 65, spatialPlanning: 58 }, physical: { vo2max: 35 }, psychological: { teamResilience: 70, selfDetermination: 65 } },
+  { name: "Ng Shi Ting", group: "Grp2", cognitive: { sart: 85.2, visualReaction: 38.33, spatialPlanning: 45 }, physical: { vo2max: 28 }, psychological: { teamResilience: 62, selfDetermination: 58 } },
+  { name: "Ong Kai Wen", group: "Grp2", cognitive: { sart: 60, visualReaction: 52, spatialPlanning: 42 }, physical: { vo2max: 21 }, psychological: { teamResilience: 55, selfDetermination: 48 } },
+  { name: "Chua Mei Xuan", group: "Grp1", cognitive: { sart: 88, visualReaction: 75, spatialPlanning: 72 }, physical: { vo2max: 32 }, psychological: { teamResilience: 85, selfDetermination: 80 } },
+  { name: "Koh Zhi Hao", group: "Grp1", cognitive: { sart: 45, visualReaction: 40, spatialPlanning: 35 }, physical: { vo2max: 44 }, psychological: { teamResilience: 42, selfDetermination: 38 } },
+];
+
+function computeReadiness(t) {
+  const cog = [t.cognitive.sart, t.cognitive.visualReaction, t.cognitive.spatialPlanning];
+  const cogAvg = cog.reduce((a, b) => a + b, 0) / cog.length;
+  const physAvg = Math.min(t.physical.vo2max / 55 * 100, 100);
+  const psy = [t.psychological.teamResilience, t.psychological.selfDetermination];
+  const psyAvg = psy.reduce((a, b) => a + b, 0) / psy.length;
+  return { cognitive: cogAvg, physical: physAvg, psychological: psyAvg, overall: Math.round((cogAvg + physAvg + psyAvg) / 3) };
+}
+
+function getSpectrum(s) {
+  if (s >= 75) return { label: "AI-Augmented", color: GREEN };
+  if (s >= 50) return { label: "AI-Receptive", color: TEAL };
+  if (s >= 25) return { label: "AI-Cautious", color: AMBER };
+  return { label: "AI-Resistant", color: PINK };
+}
+
+function Chunk({ children, delay = 0, onShow }) {
+  const [v, setV] = useState(false);
+  useEffect(() => { const t = setTimeout(() => { setV(true); onShow?.(); }, delay); return () => clearTimeout(t); }, []);
+  return <div style={{ opacity: v ? 1 : 0, transform: v ? "none" : "translateY(8px)", transition: "opacity .25s,transform .25s", maxHeight: v ? 9999 : 0, overflow: "hidden" }}>{v && children}</div>;
+}
+
+function BarChart({ data }) {
+  const [a, setA] = useState(false);
+  useEffect(() => { requestAnimationFrame(() => setA(true)); }, []);
+  return <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 110, paddingTop: 14 }}>
+    {data.map((d, i) => <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flex: 1 }}>
+      <span style={{ fontSize: 9, fontWeight: 700, color: BODY }}>{Math.round(d.value)}%</span>
+      <div style={{ width: 32, height: a ? Math.max((d.value / 100) * 88, 2) : 2, borderRadius: "4px 4px 0 0", background: d.color || TEAL, transition: "height .6s cubic-bezier(.4,0,.2,1)" }} />
+      <span style={{ fontSize: 8, color: SECONDARY, textAlign: "center", maxWidth: 50, lineHeight: 1.1 }}>{d.label}</span>
+    </div>)}
+  </div>;
+}
+
+function Gauge({ value, label, color, size = 52 }) {
+  const [a, setA] = useState(false);
+  useEffect(() => { setTimeout(() => setA(true), 50); }, []);
+  const r = (size - 7) / 2, c = 2 * Math.PI * r, p = a ? value / 100 : 0;
+  return <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={BORDER} strokeWidth={3.5} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={3.5} strokeDasharray={c} strokeDashoffset={c * (1 - p)} strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)" }} />
+      <text x={size / 2} y={size / 2 + 1} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 11, fontWeight: 700, fill: BODY }}>{Math.round(value)}</text>
+    </svg>
+    <span style={{ fontSize: 9, color: SECONDARY }}>{label}</span>
+  </div>;
+}
+
+function Spectrum({ score }) {
+  const [a, setA] = useState(false);
+  useEffect(() => { setTimeout(() => setA(true), 100); }, []);
+  const { label, color } = getSpectrum(score);
+  return <div>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+      {["AI-Resistant", "AI-Cautious", "AI-Receptive", "AI-Augmented"].map((l, i) => <span key={i} style={{ fontSize: 7.5, color: [PINK, AMBER, TEAL, GREEN][i], fontWeight: 500 }}>{l}</span>)}
+    </div>
+    <div style={{ position: "relative", height: 6, borderRadius: 3, background: `linear-gradient(90deg,${PINK},${AMBER},${TEAL},${GREEN})` }}>
+      <div style={{ position: "absolute", left: a ? `${Math.min(score, 100)}%` : "0%", top: -3, width: 12, height: 12, borderRadius: "50%", background: "#fff", border: `2.5px solid ${color}`, transform: "translateX(-50%)", transition: "left 1s ease", boxShadow: "0 1px 3px rgba(0,0,0,.15)" }} />
+    </div>
+    <div style={{ textAlign: "center", marginTop: 3 }}><span style={{ fontSize: 10, fontWeight: 700, color }}>{label}</span></div>
+  </div>;
+}
+
+function Thinking() {
+  return <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 14 }}>
+    <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${TEAL}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    </div>
+    <div style={{ padding: "9px 14px", borderRadius: "14px 14px 14px 4px", background: "#fff", border: `1px solid ${BORDER}`, display: "flex", gap: 4, alignItems: "center", boxShadow: "0 1px 3px rgba(0,0,0,.04)" }}>
+      {[0, 1, 2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: TEAL, animation: `nvB 1.4s ease-in-out ${i * .2}s infinite`, opacity: .45 }} />)}
+      <span style={{ fontSize: 11, color: SECONDARY, marginLeft: 4 }}>AI Assistant is thinking...</span>
+    </div>
+  </div>;
+}
+
+function Bubble({ isUser, children, time, np }) {
+  return <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: 12, animation: "nvS .2s ease" }}>
+    {!isUser && <div style={{ width: 28, height: 28, borderRadius: "50%", background: `${TEAL}15`, display: "flex", alignItems: "center", justifyContent: "center", marginRight: 8, flexShrink: 0, marginTop: 2 }}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke={TEAL} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+    </div>}
+    <div style={{ maxWidth: "88%", padding: np ? 0 : (isUser ? "9px 14px" : "12px 14px"), borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: isUser ? LIGHT_BG : "#fff", border: `1px solid ${BORDER}`, fontFamily: "'Ubuntu',sans-serif", fontSize: 12.5, color: BODY, lineHeight: 1.5, boxShadow: isUser ? "none" : "0 1px 3px rgba(0,0,0,.04)", overflow: "hidden" }}>
+      {children}
+      {time && <div style={{ fontSize: 10, color: SECONDARY, marginTop: 4, textAlign: "right", padding: np ? "0 14px 8px" : 0 }}>{time}</div>}
+    </div>
+  </div>;
+}
+
+function QR({ label, primary, pulse }) {
+  return <button style={{ padding: "8px 16px", borderRadius: 18, border: primary ? "none" : `1.5px solid ${TEAL}`, background: primary ? TEAL : "#fff", color: primary ? "#fff" : TEAL, fontFamily: "'Ubuntu',sans-serif", fontSize: 11.5, fontWeight: 600, cursor: "pointer", transition: "all .2s", boxShadow: primary ? `0 2px 8px ${TEAL}40` : "none", animation: pulse ? "nvPulse 1.5s ease-in-out infinite" : "none" }}>{label}</button>;
+}
+
+const trainingPlan = [
+  { week: "Weeks 1â2", title: "Foundation Phase", items: [
+    { cat: "COGNITIVE", color: TEAL, name: "Digit Span Training", freq: "3x/week, 10 min", desc: "Build short-term memory foundations" },
+    { cat: "PHYSICAL", color: PINK, name: "Strength Training for Beginners", freq: "2x/week", desc: "Establish proper form and baseline strength" },
+    { cat: "PSYCHOLOGICAL", color: GREEN, name: "Self-Determination Assessment", freq: "Baseline", desc: "Establish motivation and autonomy profiles" },
+    { cat: "BREATHING", color: CYAN, name: "Breathing Techniques for Lifting", freq: "Before each session", desc: "Proper breathing mechanics" },
+  ] },
+  { week: "Weeks 3â4", title: "Development Phase", items: [
+    { cat: "COGNITIVE", color: TEAL, name: "N-Back Training", freq: "3x/week, 10 min", desc: "Progressive working memory challenges" },
+    { cat: "COGNITIVE", color: TEAL, name: "Processing Speed Training", freq: "2x/week, 15 min", desc: "Improve reaction time and decision speed" },
+    { cat: "PHYSICAL", color: PINK, name: "Cardio-Respiratory Development", freq: "3x/week", desc: "Target VO2 Max improvement" },
+    { cat: "BREATHING", color: CYAN, name: "How to Breathe While Running", freq: "During cardio", desc: "Nasal breathing and rhythm techniques" },
+  ] },
+  { week: "Weeks 5â6", title: "Integration Phase", items: [
+    { cat: "COGNITIVE", color: TEAL, name: "Concentration Grid", freq: "Daily, 5 min", desc: "Sustained attention under cognitive load" },
+    { cat: "PSYCHOLOGICAL", color: GREEN, name: "Team Resilience Building", freq: "Weekly group", desc: "Collective coping strategies and support" },
+    { cat: "PHYSICAL", color: PINK, name: "Combined Strength + Cardio", freq: "4x/week", desc: "Circuit training for holistic fitness" },
+    { cat: "COGNITIVE", color: TEAL, name: "Spatial Planning Drills", freq: "2x/week, 10 min", desc: "Strategic thinking and planning" },
+  ] },
+];
+
+function App() {
+  const [phase, setPhase] = useState(-1); // -1=bg only, 0=chat open welcome, etc.
+  const [typedText, setTypedText] = useState("");
+  const [aC, setAC] = useState(0);
+  const [pC, setPC] = useState(0);
+  const chatRef = useRef(null);
+  const timers = useRef([]);
+
+  const rd = traineeData.map(t => ({ ...t, r: computeReadiness(t) }));
+  const avg = Math.round(rd.reduce((a, t) => a + t.r.overall, 0) / rd.length);
+  const sorted = [...rd].sort((a, b) => b.r.overall - a.r.overall);
+
+  const scroll = useCallback(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }); }, []);
+  useEffect(() => { setTimeout(scroll, 40); }, [phase, aC, pC, typedText, scroll]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const s = (fn, ms) => { const id = setTimeout(fn, ms); timers.current.push(id); };
+
+  useEffect(() => {
+    const query = "identify which teams are ready for AI";
+    const CHAR = 55;
+
+    // T=0: show bg only
+    // T=1500: open chat modal (phase 0)
+    const T_OPEN = 1500;
+    const T_TYPE_START = T_OPEN + 3000;
+    const T_TYPE_END = T_TYPE_START + query.length * CHAR;
+    const T_SEND = T_TYPE_END + 400;
+    const T_ANALYSIS = T_SEND + 2000;
+    const T_SHOW_QR = T_ANALYSIS + 1100;
+    const T_CLICK_PLAN = T_SHOW_QR + 3000;
+    const T_PLAN = T_CLICK_PLAN + 2000;
+    const T_PLAN_QR = T_PLAN + 800;
+
+    s(() => setPhase(0), T_OPEN);
+    s(() => setPhase(1), T_TYPE_START);
+    for (let i = 0; i < query.length; i++) {
+      s(() => setTypedText(query.slice(0, i + 1)), T_TYPE_START + i * CHAR);
+    }
+    s(() => setPhase(2), T_SEND);
+    s(() => { setPhase(3); setAC(0); }, T_ANALYSIS);
+    s(() => setPhase(4), T_SHOW_QR);
+    s(() => setPhase(5), T_CLICK_PLAN);
+    s(() => { setPhase(6); setPC(0); }, T_PLAN);
+    s(() => setPhase(7), T_PLAN_QR);
+  }, []);
+
+  const oA = useCallback(() => setAC(p => p + 1), []);
+  const oP = useCallback(() => setPC(p => p + 1), []);
+  const aD = [0, 80, 150, 220, 290, 360, 440, 520, 600];
+  const pDl = [0, 80, 160, 240, 320, 400];
+
+  const chatOpen = phase >= 0;
+
+  return (
+    <div style={{ width: "100%", height: "100vh", position: "relative", overflow: "hidden", fontFamily: "'Ubuntu',sans-serif", background: "#f0f0f0" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet" />
+
+      {/* Dashboard background image */}
+      <div style={{ width: "100%", height: "100%", backgroundImage: `url(${BG_IMG})`, backgroundSize: "cover", backgroundPosition: "top left", backgroundRepeat: "no-repeat" }} />
+
+      {/* Dim overlay when chat is open */}
+      {chatOpen && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.18)", transition: "opacity .4s", zIndex: 1 }} />}
+
+      {/* Chat modal */}
+      {chatOpen && (
+        <div style={{
+          position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+          width: 580, maxWidth: "95vw", height: "min(680px, 85vh)",
+          display: "flex", flexDirection: "column",
+          background: "#fff", borderRadius: 16, overflow: "hidden",
+          boxShadow: "0 20px 60px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.08)",
+          zIndex: 2, animation: "nvModalIn .35s ease",
+        }}>
+          {/* Header */}
+          <div style={{ background: TEAL, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div>
+              <div style={{ color: "#fff", fontSize: 16, fontWeight: 700 }}>NeuroVibes AI Assistant</div>
+              <div style={{ color: "rgba(255,255,255,.7)", fontSize: 11, marginTop: 1 }}>Ask anything data related</div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[<path key="t" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />,
+                <path key="x" d="M18 6L6 18M6 6l12 12" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+              ].map((ic, i) => <div key={i} style={{ width: 28, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "rgba(255,255,255,.12)" }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none">{ic}</svg></div>)}
+            </div>
+          </div>
+
+          <div style={{ textAlign: "center", padding: "10px 0 2px", fontSize: 10, color: SECONDARY, flexShrink: 0 }}>Chat started on April 8th, 2026</div>
+
+          {/* Chat body */}
+          <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "4px 14px 14px" }}>
+            <Bubble isUser={false}>Hello apvadmin. Do you need help in analysing performance data or generating insights?</Bubble>
+
+            {phase === 0 && <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12, paddingLeft: 36 }}>
+              {["List all programmes in the company", "Show me the top 5 performers in a group", "Show me the bottom 5 performers in a group"].map((q, i) => (
+                <div key={i} style={{ padding: "8px 12px", borderRadius: 9, border: `1px solid ${BORDER}`, background: "#fff", color: BODY, fontSize: 12, opacity: .5, lineHeight: 1.3 }}>{q}</div>
+              ))}
+            </div>}
+
+            {phase >= 2 && <Bubble isUser time="06:15 PM">identify which teams are ready for AI</Bubble>}
+            {phase === 2 && <Thinking />}
+
+            {phase >= 3 && <Bubble isUser={false} np time={aC >= 9 ? "06:15 PM" : undefined}>
+              <div style={{ padding: "12px 14px 4px" }}>
+                <Chunk delay={aD[0]} onShow={oA}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: DARK_TEAL, marginBottom: 6 }}>AI Readiness Analysis â CDO Basic Training 2025</div>
+                  <div style={{ fontSize: 12, color: BODY, marginBottom: 12, lineHeight: 1.5 }}>I analysed assessment data across <strong>6 trainees</strong> in <strong>2 groups</strong> from <strong>8 assessment runs</strong> (SepâDec 2025) spanning cognitive, physical, and psychological dimensions.</div>
+                </Chunk>
+                {aC >= 1 && <Chunk delay={aD[1]} onShow={oA}>
+                  <div style={{ background: `linear-gradient(135deg,${DARK_TEAL}06,${TEAL}08)`, borderRadius: 10, padding: 12, marginBottom: 12, border: `1px solid ${TEAL}20` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: TEAL, textTransform: "uppercase", letterSpacing: .6, marginBottom: 8 }}>Team AI Readiness Score</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <Gauge value={avg} label="" color={getSpectrum(avg).color} size={60} />
+                      <div style={{ flex: 1 }}><Spectrum score={avg} /></div>
+                    </div>
+                  </div>
+                </Chunk>}
+                {aC >= 2 && <Chunk delay={aD[2]} onShow={oA}><div style={{ fontSize: 10, fontWeight: 700, color: DARK_TEAL, marginBottom: 6, textTransform: "uppercase", letterSpacing: .5 }}>Individual Readiness â Ranked</div></Chunk>}
+                {sorted.slice(0, 3).map((tr, i) => {
+                  if (aC < 3 + i) return null;
+                  const sp = getSpectrum(tr.r.overall);
+                  return <Chunk key={i} delay={aD[3 + i]} onShow={oA}>
+                    <div style={{ borderRadius: 9, padding: 10, marginBottom: 8, border: `1px solid ${BORDER}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 10, color: SECONDARY, fontWeight: 700 }}>#{i + 1}</span>
+                          <span style={{ fontWeight: 700, fontSize: 12.5, color: BODY }}>{tr.name}</span>
+                          <span style={{ fontSize: 8, padding: "1.5px 6px", borderRadius: 6, background: `${sp.color}10`, color: sp.color, fontWeight: 600 }}>{sp.label}</span>
+                        </div>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: sp.color }}>{tr.r.overall}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                        <Gauge value={tr.r.cognitive} label="Cognitive" color={TEAL} />
+                        <Gauge value={tr.r.physical} label="Physical" color={PINK} />
+                        <Gauge value={tr.r.psychological} label="Psych" color={GREEN} />
+                      </div>
+                    </div>
+                  </Chunk>;
+                })}
+                {aC >= 6 && <Chunk delay={aD[6]} onShow={oA}>
+                  <details style={{ marginBottom: 10 }}>
+                    <summary style={{ fontSize: 11, color: TEAL, fontWeight: 600, cursor: "pointer", marginBottom: 6 }}>View remaining 3 trainees</summary>
+                    {sorted.slice(3).map((tr, i) => { const sp = getSpectrum(tr.r.overall); return <div key={i} style={{ borderRadius: 9, padding: 10, marginBottom: 8, border: `1px solid ${BORDER}` }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <span style={{ fontSize: 10, color: SECONDARY, fontWeight: 700 }}>#{i + 4}</span>
+                          <span style={{ fontWeight: 700, fontSize: 12.5, color: BODY }}>{tr.name}</span>
+                          <span style={{ fontSize: 8, padding: "1.5px 6px", borderRadius: 6, background: `${sp.color}10`, color: sp.color, fontWeight: 600 }}>{sp.label}</span>
+                        </div>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: sp.color }}>{tr.r.overall}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                        <Gauge value={tr.r.cognitive} label="Cognitive" color={TEAL} />
+                        <Gauge value={tr.r.physical} label="Physical" color={PINK} />
+                        <Gauge value={tr.r.psychological} label="Psych" color={GREEN} />
+                      </div>
+                    </div>; })}
+                  </details>
+                </Chunk>}
+                {aC >= 7 && <Chunk delay={aD[7]} onShow={oA}>
+                  <div style={{ borderRadius: 9, padding: 10, marginBottom: 10, border: `1px solid ${BORDER}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: DARK_TEAL, marginBottom: 6, textTransform: "uppercase", letterSpacing: .5 }}>Three-Pillar Comparison</div>
+                    <BarChart data={rd.map(tr => ({ label: tr.name.split(" ").slice(-2).join(" "), value: tr.r.cognitive, color: TEAL }))} />
+                    <div style={{ fontSize: 9, color: SECONDARY, marginTop: 2 }}>Cognitive scores by trainee</div>
+                  </div>
+                </Chunk>}
+                {aC >= 8 && <Chunk delay={aD[8]} onShow={oA}>
+                  <div style={{ background: `${AMBER}06`, borderRadius: 9, padding: 10, marginBottom: 6, borderLeft: `3px solid ${AMBER}` }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: AMBER, marginBottom: 4 }}>Key Findings</div>
+                    <div style={{ fontSize: 12, color: BODY, lineHeight: 1.5 }}>
+                      <strong>Tan Wei Lin</strong> and <strong>Chua Mei Xuan</strong> are the most AI-ready with strong cognitive and psychological profiles. <strong>Koh Zhi Hao</strong> has excellent physical scores but needs cognitive development (SART: 45%). <strong>Ong Kai Wen</strong> shows the lowest overall readiness and would benefit from a structured foundation programme.
+                    </div>
+                  </div>
+                </Chunk>}
+              </div>
+            </Bubble>}
+
+            {phase === 4 && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 12, flexWrap: "wrap", animation: "nvF .3s ease" }}>
+              <QR label="Create Training Plan" primary pulse />
+              <QR label="Export Report" />
+            </div>}
+
+            {phase >= 5 && <Bubble isUser time="06:16 PM">Create Training Plan</Bubble>}
+            {phase === 5 && <Thinking />}
+
+            {phase >= 6 && <Bubble isUser={false} np time={pC >= 6 ? "06:16 PM" : undefined}>
+              <div style={{ padding: "12px 14px 4px" }}>
+                <Chunk delay={pDl[0]} onShow={oP}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: DARK_TEAL, marginBottom: 4 }}>AI Readiness Training Plan</div>
+                  <div style={{ fontSize: 12, color: BODY, marginBottom: 12, lineHeight: 1.45 }}>Based on the team's readiness profiles, here's a 6-week structured development pathway:</div>
+                </Chunk>
+                {trainingPlan.map((ph, pi) => pC >= pi + 1 && <Chunk key={pi} delay={pDl[pi + 1]} onShow={oP}>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: TEAL, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{pi + 1}</div>
+                      <div><div style={{ fontSize: 12, fontWeight: 700, color: BODY }}>{ph.title}</div><div style={{ fontSize: 9.5, color: SECONDARY }}>{ph.week}</div></div>
+                    </div>
+                    {ph.items.map((it, ii) => <div key={ii} style={{ marginLeft: 12, borderLeft: `2px solid ${it.color}15`, paddingLeft: 12, paddingBottom: 6, marginBottom: 2 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 1 }}>
+                        <span style={{ fontSize: 7.5, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: `${it.color}10`, color: it.color, letterSpacing: .3 }}>{it.cat}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: BODY }}>{it.name}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: SECONDARY, lineHeight: 1.3 }}>{it.desc} â <span style={{ color: TEAL, fontWeight: 500 }}>{it.freq}</span></div>
+                    </div>)}
+                  </div>
+                </Chunk>)}
+                {pC >= 4 && <Chunk delay={pDl[4]} onShow={oP}>
+                  <div style={{ background: `linear-gradient(135deg,${TEAL}05,${GREEN}05)`, borderRadius: 9, padding: 10, border: `1px solid ${TEAL}15`, marginBottom: 4 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: DARK_TEAL, marginBottom: 6 }}>Expected Outcomes</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+                      {[{ l: "Cognitive Improvement", v: "+15â25%" }, { l: "VO2 Max Target", v: "+30%" }, { l: "Team Resilience", v: "+20%" }, { l: "AI Readiness Shift", v: "Cautious â Receptive" }].map((x, i) => (
+                        <div key={i} style={{ background: "#fff", borderRadius: 6, padding: "6px 8px", border: `1px solid ${BORDER}` }}>
+                          <div style={{ fontSize: 8.5, color: SECONDARY, marginBottom: 1 }}>{x.l}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: TEAL }}>{x.v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Chunk>}
+                {pC >= 5 && <Chunk delay={pDl[5]} onShow={oP}>
+                  <div style={{ marginTop: 6, marginBottom: 6 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: DARK_TEAL, marginBottom: 6, textTransform: "uppercase", letterSpacing: .4 }}>6-Week Timeline</div>
+                    <div style={{ display: "flex", borderRadius: 5, overflow: "hidden", height: 26 }}>
+                      {[{ l: "Foundation", c: TEAL }, { l: "Development", c: DARK_TEAL }, { l: "Integration", c: TURQUOISE }].map((sg, i) => <div key={i} style={{ flex: 1, background: sg.c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 9.5, fontWeight: 600 }}>{sg.l}</div>)}
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
+                      {["Week 1", "Week 3", "Week 6"].map((w, i) => <span key={i} style={{ fontSize: 8.5, color: SECONDARY }}>{w}</span>)}
+                    </div>
+                  </div>
+                </Chunk>}
+              </div>
+            </Bubble>}
+
+            {phase >= 7 && <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 12, flexWrap: "wrap", animation: "nvF .3s ease" }}>
+              <QR label="Assign to Programme" primary />
+              <QR label="Customise Plan" />
+            </div>}
+          </div>
+
+          {/* Input bar */}
+          <div style={{ padding: "10px 14px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, alignItems: "center", background: "#fff", flexShrink: 0 }}>
+            <div style={{ flex: 1, padding: "9px 13px", borderRadius: 10, border: `1px solid ${phase === 1 ? TEAL : BORDER}`, background: LIGHT_BG, fontSize: 13, color: BODY, minHeight: 20, display: "flex", alignItems: "center", transition: "border-color .2s" }}>
+              {phase === 1
+                ? <>{typedText}<span style={{ display: "inline-block", width: 2, height: 15, background: TEAL, marginLeft: 1, animation: "nvCur .8s step-end infinite" }} /></>
+                : <span style={{ color: SECONDARY }}>{phase < 1 ? "Enter your question" : ""}</span>
+              }
+            </div>
+            <button style={{ padding: "9px 16px", borderRadius: 10, background: phase === 1 ? TEAL : (phase >= 2 ? SECONDARY : TEAL), color: "#fff", border: "none", fontFamily: "'Ubuntu',sans-serif", fontSize: 13, fontWeight: 600, cursor: "default", transition: "all .15s" }}>Send</button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes nvB{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+        @keyframes nvF{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes nvS{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes nvCur{0%,100%{opacity:1}50%{opacity:0}}
+        @keyframes nvPulse{0%,100%{box-shadow:0 2px 8px ${TEAL}40}50%{box-shadow:0 2px 16px ${TEAL}70}}
+        @keyframes nvModalIn{from{opacity:0;transform:translate(-50%,-50%) scale(.95)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+        *{box-sizing:border-box}
+        ::-webkit-scrollbar{width:3px}
+        ::-webkit-scrollbar-thumb{background:${TEAL}30;border-radius:3px}
+        ::-webkit-scrollbar-track{background:transparent}
+      `}</style>
+    </div>
+  );
+}
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+  </script>
+</body>
+</html>
