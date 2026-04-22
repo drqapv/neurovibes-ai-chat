@@ -11,7 +11,7 @@
 <body style="margin:0;padding:0;overflow:hidden">
 <div id="root"></div>
 <script type="text/babel">
-import { useState, useRef, useEffect, useCallback } from "react";
+const { useState, useRef, useEffect, useCallback } = React;
 
 const BG_IMG = "bg.jpg";
 
@@ -148,7 +148,7 @@ const trainingPlan = [
   ] },
 ];
 
-export default function App() {
+function NeuroVibesChat() {
   const [phase, setPhase] = useState(-1); // -1=bg only, 0=chat open welcome, etc.
   const [typedText, setTypedText] = useState("");
   const [aC, setAC] = useState(0);
