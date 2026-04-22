@@ -1,22 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NeuroVibes AI Chat</title>
-  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet" />
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #root { width: 100%; height: 100%; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NeuroVibes AI Chat</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body>
-  <div id="root"></div>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script type="text/babel">
-const { useState, useRef, useEffect, useCallback } = React;
+<body style="margin:0;padding:0;overflow:hidden">
+<div id="root"></div>
+<script type="text/babel">
+import { useState, useRef, useEffect, useCallback } from "react";
 
 const BG_IMG = "bg.jpg";
 
@@ -153,7 +148,7 @@ const trainingPlan = [
   ] },
 ];
 
-function App() {
+export default function App() {
   const [phase, setPhase] = useState(-1); // -1=bg only, 0=chat open welcome, etc.
   const [typedText, setTypedText] = useState("");
   const [aC, setAC] = useState(0);
@@ -219,7 +214,7 @@ function App() {
       {/* Chat modal */}
       {chatOpen && (
         <div style={{
-          position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+          position: "absolute", top: "calc(50% - 100px)", left: "50%", transform: "translate(-50%, -50%)",
           width: 580, maxWidth: "95vw", height: "min(680px, 85vh)",
           display: "flex", flexDirection: "column",
           background: "#fff", borderRadius: 16, overflow: "hidden",
@@ -422,7 +417,7 @@ function App() {
 
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
-  </script>
+root.render(<NeuroVibesChat />);
+</script>
 </body>
 </html>
